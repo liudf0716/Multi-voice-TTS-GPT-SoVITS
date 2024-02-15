@@ -694,7 +694,7 @@ with gr.Blocks(theme='remilia/Ghostly') as app:
                 interactive=True,
             info='A suitable splitting method can achieve better generation results',scale=2
             )
-    with gr.Accordion(label="Preview selected tone/预览语气", open=False):
+    with gr.Accordion(label="Preview selected tone/预览语气", open=False,visible=False):
         with gr.Row(visible=True):
             inp_ref = gr.Audio(label="Reference audio", type="filepath", value=default_voice_wav, scale=3)
             prompt_text = gr.Textbox(label="Reference text", value=default_voice_wav_words, scale=3)
@@ -719,9 +719,10 @@ with gr.Blocks(theme='remilia/Ghostly') as app:
     </p>''')
     with gr.Row():
         user_voice = gr.Audio(sources=["microphone", "upload"],type="filepath", label="（3~10s）Upload or Record audio/上传或录制声音",scale=3)
+        user_lang = gr.Dropdown(label="Language/生成语言", choices=["中文", "English", "日本語"],scale=1)
         user_text= gr.Textbox(label="Text for generation/输入想要生成语音的文字", lines=5,scale=5,
         placeholder=plsh)
-        user_lang = gr.Dropdown(label="Language/生成语言", choices=["中文", "English", "日本語"],scale=1)
+        
 
     user_button = gr.Button("✨Clone Voice", variant="primary")
     user_output = gr.Audio(label="💾Output wave file,Download it by clicking ⬇️")
