@@ -726,6 +726,9 @@ with gr.Blocks(theme='remilia/Ghostly') as app:
 
     user_button = gr.Button("✨Clone Voice", variant="primary")
     user_output = gr.Audio(label="💾Output wave file,Download it by clicking ⬇️")
+
+    gr.HTML('''<div align=center><img id="visitor-badge" alt="visitor badge" src="https://visitor-badge.laobi.icu/badge?page_id=Ailyth/DLMP9" /></div>''')
+    
     english_choice.change(update_model, inputs=[english_choice], outputs=[inp_ref, prompt_text, prompt_language, text_language, model_name, tone_select])
     chinese_choice.change(update_model, inputs=[chinese_choice], outputs=[inp_ref, prompt_text, prompt_language, text_language, model_name, tone_select])
     japanese_choice.change(update_model, inputs=[japanese_choice], outputs=[inp_ref, prompt_text, prompt_language, text_language, model_name, tone_select])
