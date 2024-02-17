@@ -1,5 +1,5 @@
 ---
-title: Multi Voice TTS
+title: Multi Voice TTS(English/Chinese/Japanese)
 emoji: 🌖
 colorFrom: purple
 colorTo: gray

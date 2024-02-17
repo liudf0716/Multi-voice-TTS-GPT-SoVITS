@@ -1,54 +1,52 @@
-import os,re,sys
-import LangSegment
 import gradio as gr
-import librosa,pdb
 import numpy as np
-import torch
-from transformers import AutoModelForMaskedLM, AutoTokenizer
-from feature_extractor import cnhubert
-from time import time as ttime
-from datetime import datetime
-from AR.models.t2s_lightning_module import Text2SemanticLightningModule
-from module.mel_processing import spectrogram_torch
-from module.models import SynthesizerTrn
-from my_utils import load_audio
-from text import cleaned_text_to_sequence
-from text.cleaner import clean_text
-import pytz
 import soundfile as sf
+from datetime import datetime
+from time import time as ttime
+from my_utils import load_audio
 from transformers import pipeline
+from text.cleaner import clean_text
+from feature_extractor import cnhubert
+from timeit import default_timer as timer
+from text import cleaned_text_to_sequence
+from module.models  import  SynthesizerTrn
+import os,re,sys,LangSegment,librosa,pdb,torch,pytz
+from module.mel_processing import spectrogram_torch
 from transformers.pipelines.audio_utils import ffmpeg_read
+from transformers import AutoModelForMaskedLM, AutoTokenizer
+from AR.models.t2s_lightning_module import Text2SemanticLightningModule
+
 
 if "_CUDA_VISIBLE_DEVICES" in os.environ:
     os.environ["CUDA_VISIBLE_DEVICES"] = os.environ["_CUDA_VISIBLE_DEVICES"]
 tz = pytz.timezone('Asia/Singapore')
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-MODEL_NAME = "openai/whisper-medium"
-pipe = pipeline(
-    task="automatic-speech-recognition",
-    model=MODEL_NAME,
-    chunk_length_s=30,
-    device=device,
-)
-
 def abs_path(dir):
     global_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
     return(os.path.join(global_dir, dir))
 gpt_path = abs_path("MODELS/33/33.ckpt")
 sovits_path=abs_path("MODELS/33/33.pth")
+cnhubert_base_path = os.environ.get("cnhubert_base_path", "pretrained_models/chinese-hubert-base")
+bert_path = os.environ.get("bert_path", "pretrained_models/chinese-roberta-wwm-ext-large")
 
-cnhubert_base_path = os.environ.get(
-    "cnhubert_base_path", "pretrained_models/chinese-hubert-base"
-)
-bert_path = os.environ.get(
-    "bert_path", "pretrained_models/chinese-roberta-wwm-ext-large"
-)
-
-from timeit import default_timer as timer
-#cnhubert_base_path =  "TencentGameMate/chinese-hubert-base"
-#bert_path =  "hfl/chinese-roberta-wwm-ext-large"
+if not os.path.exists(cnhubert_base_path):
+    cnhubert_base_path = "TencentGameMate/chinese-hubert-base"
+if not os.path.exists(bert_path):
+    bert_path = "hfl/chinese-roberta-wwm-ext-large"
 cnhubert.cnhubert_base_path = cnhubert_base_path
+
+whisper_path = os.environ.get("whisper_path", "pretrained_models/whisper-small")
+if not os.path.exists(whisper_path):
+    whisper_path = "openai/whisper-small"
+
+pipe = pipeline(
+    task="automatic-speech-recognition",
+    model=whisper_path,
+    chunk_length_s=30,
+    device=device,)
+
+
 is_half = eval(
     os.environ.get("is_half", "True" if torch.cuda.is_available() else "False")
 )
@@ -226,6 +224,10 @@ def clean_text_inf(text, language):
     formattext = ""
     language = language.replace("all_","")
     for tmp in LangSegment.getTexts(text):
+        if language == "ja":
+            if tmp["lang"] == language or tmp["lang"] == "zh":
+                formattext += tmp["text"] + " "
+            continue
         if tmp["lang"] == language:
             formattext += tmp["text"] + " "
     while "  " in formattext:
@@ -558,13 +560,14 @@ def custom_sort_key(s):
     parts = [int(part) if part.isdigit() else part for part in parts]
     return parts
 
-def update_model(choice="女神"):
+def update_model(choice):
     global gpt_path, sovits_path  
     model_info = models[choice]
     gpt_path = abs_path(model_info["gpt_weight"])
     sovits_path = abs_path(model_info["sovits_weight"])
     model_name = choice
     tone_info = model_info["tones"]["tone1"] 
+    tone_sample_path = abs_path(tone_info["sample"])
     tprint(f'SELECT MODEL：{choice}')
     # 返回默认tone“tone1”
     return (
@@ -573,7 +576,8 @@ def update_model(choice="女神"):
         model_info["default_language"],   
         model_info["default_language"],
         model_name,
-        "tone1"  
+        "tone1"  ,
+        tone_sample_path
     )
 
 def update_tone(model_choice, tone_choice):
@@ -581,7 +585,8 @@ def update_tone(model_choice, tone_choice):
     tone_info = model_info["tones"][tone_choice]  
     example_voice_wav = abs_path(tone_info["example_voice_wav"])  
     example_voice_wav_words = tone_info["example_voice_wav_words"]  
-    return example_voice_wav, example_voice_wav_words
+    tone_sample_path = abs_path(tone_info["sample"])
+    return example_voice_wav, example_voice_wav_words,tone_sample_path
 
 def transcribe(voice):
     time1=timer()
@@ -643,21 +648,21 @@ with gr.Blocks(theme='remilia/Ghostly') as app:
     gr.HTML('''
   <h1 style="font-size: 25px;">A TTS GENERATOR</h1>
   <p style="margin-bottom: 10px; font-size: 100%">
-    This space is based on the innovative text-to-speech generation solution
+  If you like this space, please click the ❤️ at the top of the page..如喜欢，请点一下页面顶部的❤️<br>
+    💡This space is based on the innovative text-to-speech generation solution
     <a href="https://github.com/RVC-Boss/GPT-SoVITS" target="_blank">GPT-SoVITS</a> .
     You can visit the repo's github homepage to learn training and inference.<br>
     本空间基于新式的文字转语音生成方案 <a href="https://github.com/RVC-Boss/GPT-SoVITS" target="_blank">GPT-SoVITS</a> .
     你可以前往项目的github主页学习如何推理和训练。<br>
-    Due to using Hugging Face's free CPU for inference in this space, the speed of generating voice 
-    is very slow. If you want to generate voice more quickly, please click the Colab icon below to go to Colab 
-    and use this space, which will greatly improve the generation speed.<br>
-    由于本空间使用huggingface的免费CPU进行推理，因此速度很慢，如果你想获得快速的推理，
-    请点击下方的Colab图标，前往Colab使用本空间，会大大提升生成语音的速度
+    ✏️Generating voice is very slow due to using HuggingFace's free CPU in this space. For faster generation, 
+    click the Colab icon below to use this space in Colab, which will significantly improve the speed.<br>
+    由于本空间使用huggingface的免费CPU进行推理，因此速度很慢，如想快速生成，
+    请点击下方的Colab图标，前往Colab使用已获得更快的生成速度。
   </p>
-   <a href="https://colab.research.google.com/drive/1fTuPZ4tZsAjS-TrhQWMCb7KRdnU8aF6j#scrollTo=MDtJIbLdLHe9" target="_blank"><img src="https://camo.githubusercontent.com/dd83d4a334eab7ada034c13747d9e2237182826d32e3fda6629740b6e02f18d8/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f436f6c61622d4639414230303f7374796c653d666f722d7468652d6261646765266c6f676f3d676f6f676c65636f6c616226636f6c6f723d353235323532" alt="aolab"></a>
+   <a href="https://colab.research.google.com/drive/1fTuPZ4tZsAjS-TrhQWMCb7KRdnU8aF6j#scrollTo=MDtJIbLdLHe9" target="_blank"><img src="https://camo.githubusercontent.com/dd83d4a334eab7ada034c13747d9e2237182826d32e3fda6629740b6e02f18d8/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f436f6c61622d4639414230303f7374796c653d666f722d7468652d6261646765266c6f676f3d676f6f676c65636f6c616226636f6c6f723d353235323532" alt="colab"></a>
 ''')
 
-    default_voice_wav, default_voice_wav_words, default_language, _, default_model_name, _ = update_model("Trump")
+    default_voice_wav, default_voice_wav_words, default_language, _, default_model_name, _, default_tone_sample_path = update_model("Trump")
     english_models = [name for name, _ in models_by_language["English"]]
     chinese_models = [name for name, _ in models_by_language["中文"]]
     japanese_models = [name for name, _ in models_by_language["日本語"]]
@@ -674,33 +679,35 @@ with gr.Blocks(theme='remilia/Ghostly') as app:
 
 
     with gr.Row():
-        text_language = gr.Radio(
-            label="Select language for input text/输入的文字对应语言",
-            choices=["中文","English","日本語"],
-            value=default_language,
-            info='Input text and language must match.',scale=1,
-            )
-        tone_select = gr.Radio(
+          tone_select = gr.Radio(
             label="Select Tone/选择语气",
             choices=["tone1","tone2","tone3"],
             value="tone1",
             info='Tone influences the emotional expression ',scale=1)
-        
-        how_to_cut = gr.Dropdown(
+          tone_sample=gr.Audio(label="🔊Preview tone/试听语气 ", scale=3)
+
+    with gr.Row():
+            text_language = gr.Radio(
+            label="Select language for input text/输入的文字对应语言",
+            choices=["中文","English","日本語"],
+            value=default_language,
+            info='Input text and language must match.',scale=2,
+            )
+            how_to_cut = gr.Dropdown(
                 label=("How to split?"),
                 choices=[("Do not split"), ("Split into groups of 4 sentences"), ("Split every 50 characters"), 
                          ("Split at CN/JP periods (。)"), ("Split at English periods (.)"), ("Split at punctuation marks"), ],
                 value=("Split into groups of 4 sentences"),
                 interactive=True,
-            info='A suitable splitting method can achieve better generation results',scale=2
+            info='A suitable splitting method can achieve better generation results',scale=3
             )
-    with gr.Accordion(label="Preview selected tone/预览语气", open=False,visible=False):
+    with gr.Accordion(label="prpt voice", open=False,visible=False):
         with gr.Row(visible=True):
             inp_ref = gr.Audio(label="Reference audio", type="filepath", value=default_voice_wav, scale=3)
             prompt_text = gr.Textbox(label="Reference text", value=default_voice_wav_words, scale=3)
             prompt_language = gr.Dropdown(label="Language of the reference audio", choices=["中文", "English", "日本語"], value=default_language, scale=1,interactive=False)
 
-    tone_select.change(update_tone, inputs=[model_name, tone_select], outputs=[inp_ref, prompt_text])
+    
     
     with gr.Accordion(label="Additional generation options/附加生成选项", open=False):
         volume = gr.Slider(minimum=0.5, maximum=2, value=1, step=0.01, label='Volume')
@@ -723,16 +730,22 @@ with gr.Blocks(theme='remilia/Ghostly') as app:
         user_text= gr.Textbox(label="Text for generation/输入想要生成语音的文字", lines=5,scale=5,
         placeholder=plsh)
         
+    gr.HTML('''
+    <p style="margin-bottom: 10px; font-size: 100%">
+    🚨Custom sounds must be fully displayed before clicking the clone button; otherwise, an error will be reported.<br>
+    一定要上面显示出自定义声音，再点击clone按钮，不然100%会报错<br>
+    💽Recording requires microphone permissions to be enabled in your browser..录音请确保开启浏览器录音权限
 
+    </p>''')
     user_button = gr.Button("✨Clone Voice", variant="primary")
     user_output = gr.Audio(label="💾Output wave file,Download it by clicking ⬇️")
 
     gr.HTML('''<div align=center><img id="visitor-badge" alt="visitor badge" src="https://visitor-badge.laobi.icu/badge?page_id=Ailyth/DLMP9" /></div>''')
     
-    english_choice.change(update_model, inputs=[english_choice], outputs=[inp_ref, prompt_text, prompt_language, text_language, model_name, tone_select])
-    chinese_choice.change(update_model, inputs=[chinese_choice], outputs=[inp_ref, prompt_text, prompt_language, text_language, model_name, tone_select])
-    japanese_choice.change(update_model, inputs=[japanese_choice], outputs=[inp_ref, prompt_text, prompt_language, text_language, model_name, tone_select])
-    
+    english_choice.change(update_model, inputs=[english_choice], outputs=[inp_ref, prompt_text, prompt_language, text_language, model_name, tone_select, tone_sample])
+    chinese_choice.change(update_model, inputs=[chinese_choice], outputs=[inp_ref, prompt_text, prompt_language, text_language, model_name, tone_select, tone_sample])
+    japanese_choice.change(update_model, inputs=[japanese_choice], outputs=[inp_ref, prompt_text, prompt_language, text_language, model_name, tone_select, tone_sample])
+    tone_select.change(update_tone, inputs=[model_name, tone_select], outputs=[inp_ref, prompt_text, tone_sample])
     
     main_button.click(
     get_tts_wav,
