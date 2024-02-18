@@ -353,7 +353,7 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language,
         wprint("Please enter text to generate/请输入生成文字")
         return None
     t0 = ttime()
-    gr.Warning('Generation is slower, please be patient and wait/合成比较慢，请耐心等待')
+    
     startTime=timer()
     change_sovits_weights(sovits_path)
     tprint(f'LOADED SoVITS Model: {sovits_path}')
@@ -762,6 +762,7 @@ with gr.Blocks(theme='remilia/Ghostly') as app:
         #info = gr.Textbox(label="INFO", visible=True, readonly=True, scale=1)
 
     gr.HTML('''
+    Generation is slower, please be patient and wait/合成比较慢，请耐心等待<br>
     If it generated silence, please try again./如果生成了空白声音，请重试
     <br><br><br><br>
     <h1 style="font-size: 25px;">Clone custom Voice/克隆自定义声音</h1>
