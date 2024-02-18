@@ -25,8 +25,8 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 def abs_path(dir):
     global_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
     return(os.path.join(global_dir, dir))
-gpt_path = abs_path("MODELS/33/33.ckpt")
-sovits_path=abs_path("MODELS/33/33.pth")
+gpt_path = abs_path("MODELS/22/22.ckpt")
+sovits_path=abs_path("MODELS/22/22.pth")
 cnhubert_base_path = os.environ.get("cnhubert_base_path", "pretrained_models/chinese-hubert-base")
 bert_path = os.environ.get("bert_path", "pretrained_models/chinese-roberta-wwm-ext-large")
 
@@ -345,12 +345,15 @@ def merge_short_text_in_array(texts, threshold):
             result[len(result) - 1] += text
     return result
 
-def tprint(text):
-    now=datetime.now(tz).strftime('%H:%M:%S')
-    print(f'UTC+8 - {now} - ✅{text}')
 
 def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language, how_to_cut=("Do not split"),playback_speed=1.0, volume_scale=1.0):
+    if not duration(ref_wav_path):
+        return None
+    if  text == '':
+        wprint("Please enter text to generate/请输入生成文字")
+        return None
     t0 = ttime()
+    gr.Warning('Generation is slower, please be patient and wait/合成比较慢，请耐心等待')
     startTime=timer()
     change_sovits_weights(sovits_path)
     tprint(f'LOADED SoVITS Model: {sovits_path}')
@@ -372,7 +375,8 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language,
     with torch.no_grad():
         wav16k, sr = librosa.load(ref_wav_path, sr=16000)
         if (wav16k.shape[0] > 160000 or wav16k.shape[0] < 48000):
-            raise OSError(("参考音频在3~10秒范围外，请更换！"))
+            errinfo='参考音频在3~10秒范围外，请更换！'
+            raise OSError((errinfo))
         wav16k = torch.from_numpy(wav16k)
         zero_wav_torch = torch.from_numpy(zero_wav)
         if is_half == True:
@@ -417,7 +421,13 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language,
         if (text[-1] not in splits): text += "。" if text_language != "en" else "."
         print(("实际输入的目标文本(每句):"), text)
         phones2, word2ph2, norm_text2 = get_cleaned_text_final(text, text_language)
-        bert2 = get_bert_final(phones2, word2ph2, norm_text2, text_language, device).to(dtype)
+        
+        try:
+            bert2 = get_bert_final(phones2, word2ph2, norm_text2, text_language, device).to(dtype)
+        except RuntimeError as e:
+            wprint(f"⚠️The input text does not match the language/输入文本与语言不匹配: {e}")
+            return None
+
         bert = torch.cat([bert1, bert2], 1)
 
         all_phoneme_ids = torch.LongTensor(phones1 + phones2).to(device).unsqueeze(0)
@@ -447,7 +457,8 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language,
         else:
             refer = refer.to(device)
         # audio = vq_model.decode(pred_semantic, all_phoneme_ids, refer).detach().cpu().numpy()[0, 0]
-        audio = (
+        try:
+          audio = (
             vq_model.decode(
                 pred_semantic, torch.LongTensor(phones2).to(device).unsqueeze(0), refer
             )
@@ -455,6 +466,10 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language,
                 .cpu()
                 .numpy()[0, 0]
         ) 
+        except RuntimeError as e:
+            wprint(f"⚠️The input text does not match the language/输入文本与语言不匹配: {e}")
+            return None
+
         max_audio=np.abs(audio).max()
         if max_audio>1:audio/=max_audio
         audio_opt.append(audio)
@@ -560,6 +575,25 @@ def custom_sort_key(s):
     parts = [int(part) if part.isdigit() else part for part in parts]
     return parts
 
+def tprint(text):
+    now=datetime.now(tz).strftime('%H:%M:%S')
+    print(f'UTC+8 - {now} - ✅{text}')
+
+def wprint(text):
+    print(f'⚠️{text}')
+    gr.Warning(text)
+
+def duration(audio_file_path):
+    try:
+        audio_duration = librosa.get_duration(filename=audio_file_path)
+        if not 3 < audio_duration < 10:
+            wprint("audio is outside the range of 3-10 seconds/音频时长必须在3到10秒之间")
+            return False
+        return True
+    except FileNotFoundError:
+        wprint("Failed to obtain uploaded audio/未找到音频文件")
+        return False
+
 def update_model(choice):
     global gpt_path, sovits_path  
     model_info = models[choice]
@@ -593,7 +627,7 @@ def transcribe(voice):
     tprint('Start transcribe')
     task="transcribe"
     if voice is None:
-        print("No audio file submitted! Please upload or record an audio file before submitting your request.")
+        wprint("No audio file submitted! Please upload or record an audio file before submitting your request.")
     R = pipe(voice, batch_size=8, generate_kwargs={"task": task}, return_timestamps=True,return_language=True)
     text=R['text']
     lang=R['chunks'][0]['language']
@@ -606,10 +640,15 @@ def transcribe(voice):
 
     time2=timer()
     tprint(f'TRANSCRIBE COMPLETE,{round(time2-time1,4)}s')
-    print(f'language：{language}，words：{text}')
+    tprint(f'转录结果：\n Language：{language} Text：{text}\n' )
     return  text,language  
 
 def clone_voice(user_voice,user_text,user_lang):
+    if not duration(user_voice):
+        return None
+    if  user_text == '':
+        wprint("Please enter text to generate/请输入生成文字")
+        return None
     tprint('Start clone')
     time1=timer()
     global gpt_path, sovits_path
@@ -679,28 +718,23 @@ with gr.Blocks(theme='remilia/Ghostly') as app:
 
 
     with gr.Row():
-          tone_select = gr.Radio(
+        with gr.Column(scale=2):    
+            tone_select = gr.Radio(
             label="Select Tone/选择语气",
             choices=["tone1","tone2","tone3"],
             value="tone1",
             info='Tone influences the emotional expression ',scale=1)
-          tone_sample=gr.Audio(label="🔊Preview tone/试听语气 ", scale=3)
-
-    with gr.Row():
+            
             text_language = gr.Radio(
             label="Select language for input text/输入的文字对应语言",
             choices=["中文","English","日本語"],
             value=default_language,
-            info='Input text and language must match.',scale=2,
-            )
-            how_to_cut = gr.Dropdown(
-                label=("How to split?"),
-                choices=[("Do not split"), ("Split into groups of 4 sentences"), ("Split every 50 characters"), 
-                         ("Split at CN/JP periods (。)"), ("Split at English periods (.)"), ("Split at punctuation marks"), ],
-                value=("Split into groups of 4 sentences"),
-                interactive=True,
-            info='A suitable splitting method can achieve better generation results',scale=3
-            )
+            info='Input text and language must match.',scale=1,
+            ) 
+        
+        tone_sample=gr.Audio(label="🔊Preview tone/试听语气 ", scale=5)
+
+
     with gr.Accordion(label="prpt voice", open=False,visible=False):
         with gr.Row(visible=True):
             inp_ref = gr.Audio(label="Reference audio", type="filepath", value=default_voice_wav, scale=3)
@@ -710,6 +744,14 @@ with gr.Blocks(theme='remilia/Ghostly') as app:
     
     
     with gr.Accordion(label="Additional generation options/附加生成选项", open=False):
+        how_to_cut = gr.Dropdown(
+                label=("How to split?"),
+                choices=[("Do not split"), ("Split into groups of 4 sentences"), ("Split every 50 characters"), 
+                         ("Split at CN/JP periods (。)"), ("Split at English periods (.)"), ("Split at punctuation marks"), ],
+                value=("Split into groups of 4 sentences"),
+                interactive=True,
+            info='A suitable splitting method can achieve better generation results'
+            )
         volume = gr.Slider(minimum=0.5, maximum=2, value=1, step=0.01, label='Volume')
         speed = gr.Slider(minimum=0.5, maximum=1.5, value=1, step=0.05, label='Speed')
     
@@ -719,24 +761,19 @@ with gr.Blocks(theme='remilia/Ghostly') as app:
         output = gr.Audio(label="💾Download it by clicking ⬇️", scale=3)
         #info = gr.Textbox(label="INFO", visible=True, readonly=True, scale=1)
 
-    gr.HTML('''<br><br>
+    gr.HTML('''
+    If it generated silence, please try again./如果生成了空白声音，请重试
+    <br><br><br><br>
     <h1 style="font-size: 25px;">Clone custom Voice/克隆自定义声音</h1>
     <p style="margin-bottom: 10px; font-size: 100%">Need 3~10s audio.This involves voice-to-text conversion followed by text-to-voice conversion, so it takes longer time<br>
     需要3~10秒语音，这个会涉及语音转文字，之后再转语音，所以耗时比较久
     </p>''')
     with gr.Row():
-        user_voice = gr.Audio(sources=["microphone", "upload"],type="filepath", label="（3~10s）Upload or Record audio/上传或录制声音",scale=3)
-        user_lang = gr.Dropdown(label="Language/生成语言", choices=["中文", "English", "日本語"],scale=1)
+        user_voice = gr.Audio(type="filepath", label="（3~10s）Upload or Record audio/上传或录制声音",scale=3)
+        user_lang = gr.Dropdown(label="Language/生成语言", choices=["中文", "English", "日本語"],scale=1,value='English')
         user_text= gr.Textbox(label="Text for generation/输入想要生成语音的文字", lines=5,scale=5,
         placeholder=plsh)
-        
-    gr.HTML('''
-    <p style="margin-bottom: 10px; font-size: 100%">
-    🚨Custom sounds must be fully displayed before clicking the clone button; otherwise, an error will be reported.<br>
-    一定要上面显示出自定义声音，再点击clone按钮，不然100%会报错<br>
-    💽Recording requires microphone permissions to be enabled in your browser..录音请确保开启浏览器录音权限
-
-    </p>''')
+  
     user_button = gr.Button("✨Clone Voice", variant="primary")
     user_output = gr.Audio(label="💾Output wave file,Download it by clicking ⬇️")
 
