@@ -1,13 +1,3 @@
-import logging
-logging.getLogger("markdown_it").setLevel(logging.ERROR)
-logging.getLogger("urllib3").setLevel(logging.ERROR)
-logging.getLogger("httpcore").setLevel(logging.ERROR)
-logging.getLogger("httpx").setLevel(logging.ERROR)
-logging.getLogger("asyncio").setLevel(logging.ERROR)
-logging.getLogger("charset_normalizer").setLevel(logging.ERROR)
-logging.getLogger("torchaudio._extension").setLevel(logging.ERROR)
-logging.getLogger("multipart").setLevel(logging.WARNING)
-
 import gradio as gr
 import numpy as np
 import soundfile as sf
@@ -25,6 +15,18 @@ from module.mel_processing import spectrogram_torch
 from transformers.pipelines.audio_utils import ffmpeg_read
 from transformers import AutoModelForMaskedLM, AutoTokenizer
 from AR.models.t2s_lightning_module import Text2SemanticLightningModule
+
+
+import logging
+logging.getLogger("markdown_it").setLevel(logging.ERROR)
+logging.getLogger("urllib3").setLevel(logging.ERROR)
+logging.getLogger("httpcore").setLevel(logging.ERROR)
+logging.getLogger("httpx").setLevel(logging.ERROR)
+logging.getLogger("asyncio").setLevel(logging.ERROR)
+logging.getLogger("charset_normalizer").setLevel(logging.ERROR)
+logging.getLogger("torchaudio._extension").setLevel(logging.ERROR)
+logging.getLogger("multipart").setLevel(logging.WARNING)
+
 
 if "_CUDA_VISIBLE_DEVICES" in os.environ:
     os.environ["CUDA_VISIBLE_DEVICES"] = os.environ["_CUDA_VISIBLE_DEVICES"]
@@ -365,9 +367,9 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language,
     startTime=timer()
     text=trim_text(text,text_language)
     change_sovits_weights(sovits_path)
-    tprint(f'👌LOADED SoVITS Model: {sovits_path}')
+    tprint(f'🏕️LOADED SoVITS Model: {sovits_path}')
     change_gpt_weights(gpt_path)
-    tprint(f'👌LOADED GPT Model: {gpt_path}')
+    tprint(f'🏕️LOADED GPT Model: {gpt_path}')
 
     prompt_language = dict_language[prompt_language]
     text_language = dict_language[text_language]
@@ -375,8 +377,8 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language,
     if (prompt_text[-1] not in splits): prompt_text += "。" if prompt_language != "en" else "."
     text = text.strip("\n")
     if (text[0] not in splits and len(get_first(text)) < 4): text = "。" + text if text_language != "en" else "." + text
-    print(("实际输入的参考文本:"), prompt_text)
-    print(("📝实际输入的目标文本:"), text)
+    #print(("实际输入的参考文本:"), prompt_text)
+    #print(("📝实际输入的目标文本:"), text)
     zero_wav = np.zeros(
         int(hps.data.sampling_rate * 0.3),
         dtype=np.float16 if is_half == True else np.float32,
@@ -418,7 +420,7 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language,
         text = cut5(text)
     while "\n\n" in text:
         text = text.replace("\n\n", "\n")
-    print(("实际输入的目标文本(切句后):"), text)
+    print(f"🧨实际输入的目标文本(切句后):{text}\n")
     texts = text.split("\n")
     texts = merge_short_text_in_array(texts, 5)
     audio_opt = []
@@ -428,7 +430,7 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language,
         if (len(text.strip()) == 0):
             continue
         if (text[-1] not in splits): text += "。" if text_language != "en" else "."
-        print(("实际输入的目标文本(每句):"), text)
+        print(("\n🎈实际输入的目标文本(每句):"), text)
         phones2, word2ph2, norm_text2 = get_cleaned_text_final(text, text_language)
         bert2 = get_bert_final(phones2, word2ph2, norm_text2, text_language, device).to(dtype)
         bert = torch.cat([bert1, bert2], 1)
@@ -561,11 +563,14 @@ def cut5(inp):
     # if not re.search(r'[^\w\s]', inp[-1]):
     # inp += '。'
     inp = inp.strip("\n")
-    punds = r'[,.;?!、，。？！;：]'
+    punds = r'[,.;?!、，。？！;：…]'
     items = re.split(f'({punds})', inp)
-    items = ["".join(group) for group in zip(items[::2], items[1::2])]
-    opt = "\n".join(items)
+    mergeitems = ["".join(group) for group in zip(items[::2], items[1::2])]
+    if len(items)%2 == 1:
+        mergeitems.append(items[-1])
+    opt = "\n".join(mergeitems)
     return opt
+
 
 
 def custom_sort_key(s):
@@ -580,7 +585,7 @@ def tprint(text):
     print(f'UTC+8 - {now} - {text}')
 
 def wprint(text):
-    print(text)
+    tprint(text)
     gr.Warning(text)
 
 #裁切文本
@@ -589,11 +594,13 @@ def trim_text(text,language):
     limit_en = 60 #words  
     search_limit_cj = limit_cj+30
     search_limit_en = limit_en +30
+    text = text.replace('\n', '').strip()
+    
     if language =='English':
         words = text.split()
         if len(words) <= limit_en:
             return text
-        # 对英文文本进行处理
+        # English
         for i in range(limit_en, -1, -1):
             if any(punct in words[i] for punct in splits):
                 return ' '.join(words[:i+1])
@@ -605,13 +612,13 @@ def trim_text(text,language):
     else:#中文日文
         if len(text) <= limit_cj:
             return text
-        for i in range(limit_cj, -1, -1):  # 向前搜索
+        for i in range(limit_cj, -1, -1):  
             if text[i] in splits:
                 return text[:i+1]
-        for i in range(limit_cj, min(len(text), search_limit_cj)):  # 向后搜索，但不超过search_limit
+        for i in range(limit_cj, min(len(text), search_limit_cj)):  
             if text[i] in splits:
                 return text[:i+1]
-        return text[:limit_cj]  # 如果没有找到标点，或者超过搜索限制，直接裁切到limit
+        return text[:limit_cj]   
 
 def duration(audio_file_path):
     try:
@@ -670,7 +677,7 @@ def transcribe(voice):
 
     time2=timer()
     tprint(f'transcribe COMPLETE,{round(time2-time1,4)}s')
-    tprint(f'\n 🔣Transcribed audio：\n 🔣Language：{language} \n 🔣Text：{text}' )
+    tprint(f'\n🔣转录结果：\n 🔣Language：{language} \n 🔣Text：{text}' )
     return  text,language  
 
 def clone_voice(user_voice,user_text,user_lang):
@@ -679,7 +686,7 @@ def clone_voice(user_voice,user_text,user_lang):
     if  user_text == '':
         wprint("Please enter text to generate/请输入生成文字")
         return None
-    tprint('⚡Start clone')
+    #tprint('⚡Start clone')
     user_text=trim_text(user_text,user_lang)
     time1=timer()
     global gpt_path, sovits_path
@@ -736,9 +743,9 @@ with gr.Blocks(theme='Kasien/ali_theme_custom') as app:
     chinese_models = [name for name, _ in models_by_language["中文"]]
     japanese_models = [name for name, _ in models_by_language["日本語"]]
     with gr.Row():
-        english_choice = gr.Radio(english_models, label="EN|English Model",value="Trump")
-        chinese_choice = gr.Radio(chinese_models, label="CN|中文模型")
-        japanese_choice = gr.Radio(japanese_models, label="JP|日本語モデル")
+        english_choice = gr.Radio(english_models, label="EN|English Model",value="Trump",scale=3)
+        chinese_choice = gr.Radio(chinese_models, label="CN|中文模型",scale=2)
+        japanese_choice = gr.Radio(japanese_models, label="JP|日本語モデル",scale=4)
 
     plsh='Text must match the selected language option to prevent errors, for example, if English is input but Chinese is selected for generation.\n文字一定要和语言选项匹配，不然要报错，比如输入的是英文，生成语言选中文'
     limit='Max 70 words. Excess will be ignored./单次最多处理120字左右，多余的会被忽略'
@@ -784,7 +791,7 @@ with gr.Blocks(theme='Kasien/ali_theme_custom') as app:
                 interactive=True,
             info='A suitable splitting method can achieve better generation results'
             )
-        volume = gr.Slider(minimum=0.5, maximum=2, value=1, step=0.01, label='Volume')
+        volume = gr.Slider(minimum=0.5, maximum=2, value=1, step=0.01, label='Volume/音量')
         
     
     
@@ -809,7 +816,7 @@ with gr.Blocks(theme='Kasien/ali_theme_custom') as app:
         placeholder=plsh,info=limit)
   
     user_button = gr.Button("✨Clone Voice", variant="primary")
-    user_output = gr.Audio(label="💾Output wave file,Download it by clicking ⬇️")
+    user_output = gr.Audio(label="💾Download it by clicking ⬇️")
 
     gr.HTML('''<div align=center><img id="visitor-badge" alt="visitor badge" src="https://visitor-badge.laobi.icu/badge?page_id=Ailyth/DLMP9" /></div>''')
     
