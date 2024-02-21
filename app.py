@@ -432,7 +432,11 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language,
         if (text[-1] not in splits): text += "。" if text_language != "en" else "."
         print(("\n🎈实际输入的目标文本(每句):"), text)
         phones2, word2ph2, norm_text2 = get_cleaned_text_final(text, text_language)
-        bert2 = get_bert_final(phones2, word2ph2, norm_text2, text_language, device).to(dtype)
+        try:
+            bert2 = get_bert_final(phones2, word2ph2, norm_text2, text_language, device).to(dtype)
+        except RuntimeError as e:
+            wprint(f"The input text does not match the language/输入文本与语言不匹配: {e}")
+            return None
         bert = torch.cat([bert1, bert2], 1)
 
         all_phoneme_ids = torch.LongTensor(phones1 + phones2).to(device).unsqueeze(0)
@@ -686,7 +690,7 @@ def clone_voice(user_voice,user_text,user_lang):
     if  user_text == '':
         wprint("Please enter text to generate/请输入生成文字")
         return None
-    #tprint('⚡Start clone')
+    tprint('⚡Start clone')
     user_text=trim_text(user_text,user_lang)
     time1=timer()
     global gpt_path, sovits_path
@@ -724,18 +728,22 @@ with gr.Blocks(theme='Kasien/ali_theme_custom') as app:
     gr.HTML('''
   <h1 style="font-size: 25px;">A TTS GENERATOR</h1>
   <p style="margin-bottom: 10px; font-size: 100%">
-  If you like this space, please click the ❤️ at the top of the page..如喜欢，请点一下页面顶部的❤️<br>
-    💡This space is based on the innovative text-to-speech generation solution
-    <a href="https://github.com/RVC-Boss/GPT-SoVITS" target="_blank">GPT-SoVITS</a> .
+   If you like this space, please click the ❤️ at the top of the page..如喜欢，请点一下页面顶部的❤️<br>
+  </p>''')
+
+    gr.Markdown("""* This space is based on the text-to-speech generation solution GPT-SoVITS . 
     You can visit the repo's github homepage to learn training and inference.<br>
-    本空间基于新式的文字转语音生成方案 <a href="https://github.com/RVC-Boss/GPT-SoVITS" target="_blank">GPT-SoVITS</a> .
-    你可以前往项目的github主页学习如何推理和训练。<br>
-    ✏️Generating voice is very slow due to using HuggingFace's free CPU in this space. For faster generation, 
-    click the Colab icon below to use this space in Colab, which will significantly improve the speed.<br>
-    由于本空间使用huggingface的免费CPU进行推理，因此速度很慢，如想快速生成，
-    请点击下方的Colab图标，前往Colab使用已获得更快的生成速度。
-  </p>
-   <a href="https://colab.research.google.com/drive/1fTuPZ4tZsAjS-TrhQWMCb7KRdnU8aF6j#scrollTo=MDtJIbLdLHe9" target="_blank"><img src="https://camo.githubusercontent.com/dd83d4a334eab7ada034c13747d9e2237182826d32e3fda6629740b6e02f18d8/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f436f6c61622d4639414230303f7374796c653d666f722d7468652d6261646765266c6f676f3d676f6f676c65636f6c616226636f6c6f723d353235323532" alt="colab"></a>
+    本空间基于文字转语音生成方案 GPT-SoVITS . 你可以前往项目的github主页学习如何推理和训练。 
+    * ⚠️Generating voice is very slow due to using HuggingFace's free CPU in this space. 
+    For faster generation, click the Colab icon below to use this space in Colab,
+    which will significantly improve the speed.<br>
+    由于本空间使用huggingface的免费CPU进行推理，因此速度很慢，如想快速生成，请点击下方的Colab图标，
+    前往Colab使用已获得更快的生成速度。
+    <br>Colabの使用を強くお勧めします。より速い生成速度が得られます。 
+    * The model's corresponding language is its native language, but in fact, 
+    each model can speak three languages.<br>模型对应的语言是其母语，但实际上，
+    每个模型都能说三种语言<br>モデルに対応する言語はその母国語ですが、実際には、各モデルは3つの言語を話すことができます。""")   
+    gr.HTML('''<a href="https://colab.research.google.com/drive/1fTuPZ4tZsAjS-TrhQWMCb7KRdnU8aF6j#scrollTo=MDtJIbLdLHe9" target="_blank"><img src="https://camo.githubusercontent.com/dd83d4a334eab7ada034c13747d9e2237182826d32e3fda6629740b6e02f18d8/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f436f6c61622d4639414230303f7374796c653d666f722d7468652d6261646765266c6f676f3d676f6f676c65636f6c616226636f6c6f723d353235323532" alt="colab"></a>
 ''')
 
     default_voice_wav, default_voice_wav_words, default_language, _, default_model_name, _, default_tone_sample_path = update_model("Trump")
@@ -749,7 +757,9 @@ with gr.Blocks(theme='Kasien/ali_theme_custom') as app:
 
     plsh='Text must match the selected language option to prevent errors, for example, if English is input but Chinese is selected for generation.\n文字一定要和语言选项匹配，不然要报错，比如输入的是英文，生成语言选中文'
     limit='Max 70 words. Excess will be ignored./单次最多处理120字左右，多余的会被忽略'
-    
+
+    gr.HTML('''
+    <b>输入文字</b>''')
     with gr.Row():
         model_name = gr.Textbox(label="Seleted Model/已选模型", value=default_model_name, scale=1) 
         text = gr.Textbox(label="Input some text for voice generation/输入想要生成语音的文字", lines=5,scale=8,
@@ -794,7 +804,8 @@ with gr.Blocks(theme='Kasien/ali_theme_custom') as app:
         volume = gr.Slider(minimum=0.5, maximum=2, value=1, step=0.01, label='Volume/音量')
         
     
-    
+    gr.HTML('''
+    <b>开始生成</b>''')
     with gr.Row():
         main_button = gr.Button("✨Generate Voice", variant="primary", scale=1)
         output = gr.Audio(label="💾Download it by clicking ⬇️", scale=3)
