@@ -61,8 +61,6 @@ pipe = pipeline(
 is_half = eval(
     os.environ.get("is_half", "True" if torch.cuda.is_available() else "False")
 )
-device = "cuda" if torch.cuda.is_available() else "cpu"
-
 
 tokenizer = AutoTokenizer.from_pretrained(bert_path)
 bert_model = AutoModelForMaskedLM.from_pretrained(bert_path)
@@ -731,35 +729,35 @@ with gr.Blocks(theme='Kasien/ali_theme_custom') as app:
    If you like this space, please click the ❤️ at the top of the page..如喜欢，请点一下页面顶部的❤️<br>
   </p>''')
 
-    gr.Markdown("""* This space is based on the text-to-speech generation solution GPT-SoVITS . 
+    gr.Markdown("""* This space is based on the text-to-speech generation solution [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) . 
     You can visit the repo's github homepage to learn training and inference.<br>
-    本空间基于文字转语音生成方案 GPT-SoVITS . 你可以前往项目的github主页学习如何推理和训练。 
+    本空间基于文字转语音生成方案[GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) . 你可以前往项目的github主页学习如何推理和训练。 
     * ⚠️Generating voice is very slow due to using HuggingFace's free CPU in this space. 
     For faster generation, click the Colab icon below to use this space in Colab,
     which will significantly improve the speed.<br>
     由于本空间使用huggingface的免费CPU进行推理，因此速度很慢，如想快速生成，请点击下方的Colab图标，
     前往Colab使用已获得更快的生成速度。
-    <br>Colabの使用を強くお勧めします。より速い生成速度が得られます。 
-    * The model's corresponding language is its native language, but in fact, 
-    each model can speak three languages.<br>模型对应的语言是其母语，但实际上，
-    每个模型都能说三种语言<br>モデルに対応する言語はその母国語ですが、実際には、各モデルは3つの言語を話すことができます。""")   
-    gr.HTML('''<a href="https://colab.research.google.com/drive/1fTuPZ4tZsAjS-TrhQWMCb7KRdnU8aF6j#scrollTo=MDtJIbLdLHe9" target="_blank"><img src="https://camo.githubusercontent.com/dd83d4a334eab7ada034c13747d9e2237182826d32e3fda6629740b6e02f18d8/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f436f6c61622d4639414230303f7374796c653d666f722d7468652d6261646765266c6f676f3d676f6f676c65636f6c616226636f6c6f723d353235323532" alt="colab"></a>
+    <br>Colabの使用を強くお勧めします。より速い生成速度が得られます。 """)   
+    gr.HTML('''<a href="https://colab.research.google.com/drive/1fTuPZ4tZsAjS-TrhQWMCb7KRdnU8aF6j" target="_blank"><img src="https://camo.githubusercontent.com/dd83d4a334eab7ada034c13747d9e2237182826d32e3fda6629740b6e02f18d8/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f436f6c61622d4639414230303f7374796c653d666f722d7468652d6261646765266c6f676f3d676f6f676c65636f6c616226636f6c6f723d353235323532" alt="colab"></a>
 ''')
 
+    gr.Markdown('''* The model's corresponding language is its native language, but in fact, 
+    each model can speak three languages.<br>模型对应的语言是其母语，但实际上，
+    每个模型都能说三种语言<br>モデルに対応する言語はその母国語ですが、実際には、各モデルは3つの言語を話すことができます。''')
     default_voice_wav, default_voice_wav_words, default_language, _, default_model_name, _, default_tone_sample_path = update_model("Trump")
     english_models = [name for name, _ in models_by_language["English"]]
     chinese_models = [name for name, _ in models_by_language["中文"]]
     japanese_models = [name for name, _ in models_by_language["日本語"]]
     with gr.Row():
         english_choice = gr.Radio(english_models, label="EN|English Model",value="Trump",scale=3)
-        chinese_choice = gr.Radio(chinese_models, label="CN|中文模型",scale=2)
+        chinese_choice = gr.Radio(chinese_models, label="CN|中文模型",scale=3)
         japanese_choice = gr.Radio(japanese_models, label="JP|日本語モデル",scale=4)
 
     plsh='Text must match the selected language option to prevent errors, for example, if English is input but Chinese is selected for generation.\n文字一定要和语言选项匹配，不然要报错，比如输入的是英文，生成语言选中文'
     limit='Max 70 words. Excess will be ignored./单次最多处理120字左右，多余的会被忽略'
 
     gr.HTML('''
-    <b>输入文字</b>''')
+    <b>Input text/输入文字</b>''')
     with gr.Row():
         model_name = gr.Textbox(label="Seleted Model/已选模型", value=default_model_name, scale=1) 
         text = gr.Textbox(label="Input some text for voice generation/输入想要生成语音的文字", lines=5,scale=8,
@@ -805,14 +803,14 @@ with gr.Blocks(theme='Kasien/ali_theme_custom') as app:
         
     
     gr.HTML('''
-    <b>开始生成</b>''')
+    <b>Start generating/开始生成</b>''')
     with gr.Row():
         main_button = gr.Button("✨Generate Voice", variant="primary", scale=1)
         output = gr.Audio(label="💾Download it by clicking ⬇️", scale=3)
         #info = gr.Textbox(label="INFO", visible=True, readonly=True, scale=1)
 
     gr.HTML('''
-    Generation is slower, please be patient and wait/合成比较慢，请耐心等待<br>
+    Quickly generate with Colab/使用Colab快速生成：<a href="https://colab.research.google.com/drive/1fTuPZ4tZsAjS-TrhQWMCb7KRdnU8aF6j" target="_blank"><img src="https://camo.githubusercontent.com/dd83d4a334eab7ada034c13747d9e2237182826d32e3fda6629740b6e02f18d8/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f436f6c61622d4639414230303f7374796c653d666f722d7468652d6261646765266c6f676f3d676f6f676c65636f6c616226636f6c6f723d353235323532" alt="colab"></a>
     If it generated silence, please try again./如果生成了空白声音，请重试
     <br><br><br><br>
     <h1 style="font-size: 25px;">Clone custom Voice/克隆自定义声音</h1>

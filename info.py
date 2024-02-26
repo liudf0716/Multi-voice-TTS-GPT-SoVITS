@@ -276,6 +276,54 @@ models = {
         },
     },
 
+    "方言腔1": {
+        "gpt_weight": "MODELS/Mandarin/TJ/TJ.ckpt",
+        "sovits_weight": "MODELS/Mandarin/TJ/TJ.pth",
+        "default_language": "中文",
+        "tones": {
+                "tone1": {
+                   "sample": "MODELS/Mandarin/TJ/A0003_S004_0_G0001_1.WAV.mp3",
+                    "example_voice_wav": "MODELS/Mandarin/TJ/A0003_S004_0_G0001_1.WAV.mp3",
+                    "example_voice_wav_words": "咱今个儿，咱今个儿，咱聊聊这个旅游吧。好吗？",
+                },
+                "tone2": {
+                    "sample": "MODELS/Mandarin/TJ/A0003_S004_0_G0001_61.WAV.mp3",
+                    "example_voice_wav": "MODELS/Mandarin/TJ/A0003_S004_0_G0001_61.WAV.mp3",
+                    "example_voice_wav_words": "分不出来是早点。午饭。晚饭",
+                },
+                "tone3": {
+                    "sample": "MODELS/Mandarin/TJ/A0003_S006_0_G0001_189.WAV.mp3",
+                    "example_voice_wav": "MODELS/Mandarin/TJ/A0003_S006_0_G0001_189.WAV.mp3",
+                    "example_voice_wav_words": "你看你看中国这踢球，妈的球到你妈就多少人追，都追不上",
+                },
+        },
+    },
+
+
+      "方言腔2": {
+        "gpt_weight": "MODELS/Mandarin/ZZ/ZZ.ckpt",
+        "sovits_weight": "MODELS/Mandarin/ZZ/ZZ.pth",
+        "default_language": "中文",
+        "tones": {
+                "tone1": {
+                   "sample": "MODELS/Mandarin/ZZ/A0001_S001_0_G0001_10.WAV.mp3",
+                    "example_voice_wav": "MODELS/Mandarin/ZZ/A0001_S001_0_G0001_10.WAV.mp3",
+                    "example_voice_wav_words": "那你说那小嘞是不是都是谁家盖房子用那一种小嘞。",
+                },
+                "tone2": {
+                    "sample": "MODELS/Mandarin/ZZ/A0001_S003_0_G0001_2.WAV.mp3",
+                    "example_voice_wav": "MODELS/Mandarin/ZZ/A0001_S003_0_G0001_2.WAV.mp3",
+                    "example_voice_wav_words": "我听人家说，你是，学音乐嘞。",
+                },
+                "tone3": {
+                    "sample": "MODELS/Mandarin/ZZ/A0001_S003_0_G0001_14.WAV.mp3",
+                    "example_voice_wav": "MODELS/Mandarin/ZZ/A0001_S003_0_G0001_14.WAV.mp3",
+                    "example_voice_wav_words": "它不是管儿，它不是管儿，它就是，嗯，哎呀，不知道咋形容，圆咧。",
+                },
+        },
+    },
+
+
 
     "白い悪魔": {
         "gpt_weight": "MODELS/G1/G1.ckpt",
