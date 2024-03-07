@@ -26,6 +26,8 @@ logging.getLogger("asyncio").setLevel(logging.ERROR)
 logging.getLogger("charset_normalizer").setLevel(logging.ERROR)
 logging.getLogger("torchaudio._extension").setLevel(logging.ERROR)
 logging.getLogger("multipart").setLevel(logging.WARNING)
+from download import *
+download()
 
 
 if "_CUDA_VISIBLE_DEVICES" in os.environ:
