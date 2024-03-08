@@ -24,3 +24,7 @@ LangSegment
 soundfile
 git+https://github.com/huggingface/transformers
 torch
+pyicu 
+morfessor 
+pycld2
+polyglot
