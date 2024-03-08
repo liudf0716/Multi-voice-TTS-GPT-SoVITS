@@ -871,4 +871,4 @@ with gr.Blocks(theme='Kasien/ali_theme_custom') as app:
     inputs=[user_voice,user_text,user_lang],
     outputs=[user_output])
 
-app.launch(share=True)
+app.launch(share=True, show_api=False).queue(api_open=False)
