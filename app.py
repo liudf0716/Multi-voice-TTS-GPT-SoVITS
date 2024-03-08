@@ -6,6 +6,7 @@ from time import time as ttime
 from my_utils import load_audio
 from transformers import pipeline
 from text.cleaner import clean_text
+from polyglot.detect import  Detector
 from feature_extractor import cnhubert
 from timeit import default_timer as timer
 from text import cleaned_text_to_sequence
@@ -28,7 +29,6 @@ logging.getLogger("torchaudio._extension").setLevel(logging.ERROR)
 logging.getLogger("multipart").setLevel(logging.WARNING)
 from download import *
 download()
-
 
 if "_CUDA_VISIBLE_DEVICES" in os.environ:
     os.environ["CUDA_VISIBLE_DEVICES"] = os.environ["_CUDA_VISIBLE_DEVICES"]
@@ -372,7 +372,12 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language,
     tprint(f'🏕️LOADED GPT Model: {gpt_path}')
 
     prompt_language = dict_language[prompt_language]
-    text_language = dict_language[text_language]
+    try:
+        text_language = dict_language[text_language]
+    except KeyError as e:
+        wprint(f"Not supported language types/不支持此語言: {e}")
+        return None
+        
     prompt_text = prompt_text.strip("\n")
     if (prompt_text[-1] not in splits): prompt_text += "。" if prompt_language != "en" else "."
     text = text.strip("\n")
@@ -584,6 +589,8 @@ def custom_sort_key(s):
     parts = [int(part) if part.isdigit() else part for part in parts]
     return parts
 
+#==========custom functions============
+
 def tprint(text):
     now=datetime.now(tz).strftime('%H:%M:%S')
     print(f'UTC+8 - {now} - {text}')
@@ -592,7 +599,25 @@ def wprint(text):
     tprint(text)
     gr.Warning(text)
 
-#裁切文本
+def lang_detector(text):
+    min_chars = 5
+    if len(text) < min_chars:
+        return "Input text too short/输入文本太短"
+    try:
+        detector = Detector(text).language
+        lang_info = str(detector)
+        code = re.search(r"code: (\w+)", lang_info).group(1)
+        if code == 'ja':
+            return "日本語"
+        elif code == 'zh':
+            return "中文"
+        elif code == 'en':
+            return 'English'
+        else:
+            return re.search(r"name: (\w+)", lang_info).group(1)
+    except Exception as e:
+        return f"ERROR：{str(e)}"
+        
 def trim_text(text,language): 
     limit_cj = 120 #character
     limit_en = 60 #words  
@@ -755,15 +780,21 @@ with gr.Blocks(theme='Kasien/ali_theme_custom') as app:
         chinese_choice = gr.Radio(chinese_models, label="CN|中文模型",scale=2)
         japanese_choice = gr.Radio(japanese_models, label="JP|日本語モデル",scale=4)
 
-    plsh='Text must match the selected language option to prevent errors, for example, if English is input but Chinese is selected for generation.\n文字一定要和语言选项匹配，不然要报错，比如输入的是英文，生成语言选中文'
+    plsh='Input any text you like / 輸入任意文字'
     limit='Max 70 words. Excess will be ignored./单次最多处理120字左右，多余的会被忽略'
 
     gr.HTML('''
     <b>输入文字</b>''')
     with gr.Row():
-        model_name = gr.Textbox(label="Seleted Model/已选模型", value=default_model_name, scale=1) 
-        text = gr.Textbox(label="Input some text for voice generation/输入想要生成语音的文字", lines=5,scale=8,
+        with gr.Column(scale=2): 
+            model_name = gr.Textbox(label="Seleted Model/已选模型", value=default_model_name, scale=1) 
+            text_language = gr.Textbox(
+            label="Select language for input text/输入的文字对应语言",
+            info='Automatic detection of input language type.',scale=1,interactive=False
+            ) 
+        text = gr.Textbox(label="Input some text for voice generation/输入想要生成语音的文字", lines=5,scale=6,
         placeholder=plsh,info=limit)
+        text.change( lang_detector, text, text_language)
 
 
     with gr.Row():
@@ -773,15 +804,7 @@ with gr.Blocks(theme='Kasien/ali_theme_custom') as app:
             choices=["tone1","tone2","tone3"],
             value="tone1",
             info='Tone influences the emotional expression ',scale=1)
-            
-            text_language = gr.Radio(
-            label="Select language for input text/输入的文字对应语言",
-            choices=["中文","English","日本語"],
-            value=default_language,
-            info='Input text and language must match.',scale=1,
-            ) 
-        
-        tone_sample=gr.Audio(label="🔊Preview tone/试听语气 ", scale=5)
+        tone_sample=gr.Audio(label="🔊Preview tone/试听语气 ", scale=6)
 
 
     with gr.Accordion(label="prpt voice", open=False,visible=False):
@@ -789,8 +812,8 @@ with gr.Blocks(theme='Kasien/ali_theme_custom') as app:
             inp_ref = gr.Audio(label="Reference audio", type="filepath", value=default_voice_wav, scale=3)
             prompt_text = gr.Textbox(label="Reference text", value=default_voice_wav_words, scale=3)
             prompt_language = gr.Dropdown(label="Language of the reference audio", choices=["中文", "English", "日本語"], value=default_language, scale=1,interactive=False)
-
-    
+            dummy = gr.Radio(choices=["中文","English","日本語"],visible=False)
+     
     
     with gr.Accordion(label="Additional generation options/附加生成选项", open=False):
         how_to_cut = gr.Dropdown(
@@ -807,8 +830,8 @@ with gr.Blocks(theme='Kasien/ali_theme_custom') as app:
     gr.HTML('''
     <b>开始生成</b>''')
     with gr.Row():
-        main_button = gr.Button("✨Generate Voice", variant="primary", scale=1)
-        output = gr.Audio(label="💾Download it by clicking ⬇️", scale=3)
+        main_button = gr.Button("✨Generate Voice", variant="primary", scale=2)
+        output = gr.Audio(label="💾Download it by clicking ⬇️", scale=6)
         #info = gr.Textbox(label="INFO", visible=True, readonly=True, scale=1)
 
     gr.HTML('''
@@ -822,18 +845,20 @@ with gr.Blocks(theme='Kasien/ali_theme_custom') as app:
     
     with gr.Row():
         user_voice = gr.Audio(type="filepath", label="（3~10s）Upload or Record audio/上传或录制声音",scale=3)
-        user_lang = gr.Dropdown(label="Language/生成语言", choices=["中文", "English", "日本語"],scale=1,value='English')
-        user_text= gr.Textbox(label="Text for generation/输入想要生成语音的文字", lines=5,scale=5,
+        with gr.Column(scale=7): 
+            user_lang = gr.Textbox(label="Language/生成语言",info='Automatic detection of input language type.',interactive=False)
+            user_text= gr.Textbox(label="Text for generation/输入想要生成语音的文字", lines=5,
         placeholder=plsh,info=limit)
-  
+    user_text.change( lang_detector, user_text, user_lang)
+
     user_button = gr.Button("✨Clone Voice", variant="primary")
     user_output = gr.Audio(label="💾Download it by clicking ⬇️")
 
     gr.HTML('''<div align=center><img id="visitor-badge" alt="visitor badge" src="https://visitor-badge.laobi.icu/badge?page_id=Ailyth/DLMP9" /></div>''')
     
-    english_choice.change(update_model, inputs=[english_choice], outputs=[inp_ref, prompt_text, prompt_language, text_language, model_name, tone_select, tone_sample])
-    chinese_choice.change(update_model, inputs=[chinese_choice], outputs=[inp_ref, prompt_text, prompt_language, text_language, model_name, tone_select, tone_sample])
-    japanese_choice.change(update_model, inputs=[japanese_choice], outputs=[inp_ref, prompt_text, prompt_language, text_language, model_name, tone_select, tone_sample])
+    english_choice.change(update_model, inputs=[english_choice], outputs=[inp_ref, prompt_text, prompt_language,dummy,model_name, tone_select, tone_sample])
+    chinese_choice.change(update_model, inputs=[chinese_choice], outputs=[inp_ref, prompt_text, prompt_language, dummy,model_name, tone_select, tone_sample])
+    japanese_choice.change(update_model, inputs=[japanese_choice], outputs=[inp_ref, prompt_text, prompt_language,dummy,model_name, tone_select, tone_sample])
     tone_select.change(update_tone, inputs=[model_name, tone_select], outputs=[inp_ref, prompt_text, tone_sample])
     
     main_button.click(
