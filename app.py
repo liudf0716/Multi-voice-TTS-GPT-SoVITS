@@ -606,15 +606,15 @@ def lang_detector(text):
     try:
         detector = Detector(text).language
         lang_info = str(detector)
-        code = re.search(r"code: (\w+)", lang_info).group(1)
-        if code == 'ja':
+        code = re.search(r"name: (\w+)", lang_info).group(1)
+        if code == 'Japanese':
             return "日本語"
-        elif code == 'zh':
+        elif code == 'Chinese':
             return "中文"
-        elif code == 'en':
+        elif code == 'English':
             return 'English'
         else:
-            return re.search(r"name: (\w+)", lang_info).group(1)
+            return code
     except Exception as e:
         return f"ERROR：{str(e)}"
         
@@ -756,9 +756,9 @@ with gr.Blocks(theme='Kasien/ali_theme_custom') as app:
    If you like this space, please click the ❤️ at the top of the page..如喜欢，请点一下页面顶部的❤️<br>
   </p>''')
 
-    gr.Markdown("""* This space is based on the text-to-speech generation solution GPT-SoVITS . 
+    gr.Markdown("""* This space is based on the text-to-speech generation solution [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) . 
     You can visit the repo's github homepage to learn training and inference.<br>
-    本空间基于文字转语音生成方案 GPT-SoVITS . 你可以前往项目的github主页学习如何推理和训练。 
+    本空间基于文字转语音生成方案[GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) . 你可以前往项目的github主页学习如何推理和训练。
     * ⚠️Generating voice is very slow due to using HuggingFace's free CPU in this space. 
     For faster generation, click the Colab icon below to use this space in Colab,
     which will significantly improve the speed.<br>
