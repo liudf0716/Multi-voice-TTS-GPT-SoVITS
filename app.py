@@ -726,7 +726,7 @@ def clone_voice(user_voice,user_text,user_lang):
     sovits_path = abs_path("pretrained_models/s2G488k.pth")
     #tprint(f'Model loaded:{sovits_path}')
     try:
-        prompt_text, prompt_lang = transcribe(user_voice)
+        prompt_text, prompt_language = transcribe(user_voice)
     except UnboundLocalError as e:
         wprint(f"The language in the audio cannot be recognized ：{str(e)}")
         return None
