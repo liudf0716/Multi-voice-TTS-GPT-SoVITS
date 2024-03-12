@@ -650,6 +650,9 @@ def trim_text(text,language):
         return text[:limit_cj]   
 
 def duration(audio_file_path):
+    if not audio_file_path:
+        wprint("Failed to obtain uploaded audio/未找到音频文件")
+        return False
     try:
         audio_duration = librosa.get_duration(filename=audio_file_path)
         if not 3 < audio_duration < 10:
@@ -657,7 +660,6 @@ def duration(audio_file_path):
             return False
         return True
     except FileNotFoundError:
-        wprint("Failed to obtain uploaded audio/未找到音频文件")
         return False
 
 def update_model(choice):
@@ -723,7 +725,12 @@ def clone_voice(user_voice,user_text,user_lang):
     #tprint(f'Model loaded:{gpt_path}')
     sovits_path = abs_path("pretrained_models/s2G488k.pth")
     #tprint(f'Model loaded:{sovits_path}')
-    prompt_text, prompt_language = transcribe(user_voice)
+    try:
+        prompt_text, prompt_lang = transcribe(user_voice)
+    except UnboundLocalError as e:
+        wprint(f"The language in the audio cannot be recognized ：{str(e)}")
+        return None
+    
     output_wav = get_tts_wav(
     user_voice,
     prompt_text,
@@ -751,23 +758,22 @@ for model_name, model_info in models.items():
 
 with gr.Blocks(theme='Kasien/ali_theme_custom') as app:
     gr.HTML('''
-  <h1 style="font-size: 25px;">A TTS GENERATOR</h1>
+  <h1 style="font-size: 25px;">TEXT TO SPEECH</h1>
+  <h1 style="font-size: 20px;">Support English/Chinese/Japanese</h1>
   <p style="margin-bottom: 10px; font-size: 100%">
    If you like this space, please click the ❤️ at the top of the page..如喜欢，请点一下页面顶部的❤️<br>
   </p>''')
 
     gr.Markdown("""* This space is based on the text-to-speech generation solution [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) . 
     You can visit the repo's github homepage to learn training and inference.<br>
-    本空间基于文字转语音生成方案[GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) . 你可以前往项目的github主页学习如何推理和训练。
+    本空间基于文字转语音生成方案 [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS). 你可以前往项目的github主页学习如何推理和训练。 
     * ⚠️Generating voice is very slow due to using HuggingFace's free CPU in this space. 
     For faster generation, click the Colab icon below to use this space in Colab,
     which will significantly improve the speed.<br>
     由于本空间使用huggingface的免费CPU进行推理，因此速度很慢，如想快速生成，请点击下方的Colab图标，
     前往Colab使用已获得更快的生成速度。
     <br>Colabの使用を強くお勧めします。より速い生成速度が得られます。 
-    * The model's corresponding language is its native language, but in fact, 
-    each model can speak three languages.<br>模型对应的语言是其母语，但实际上，
-    每个模型都能说三种语言<br>モデルに対応する言語はその母国語ですが、実際には、各モデルは3つの言語を話すことができます。""")   
+    *  each model can speak three languages.<br>每个模型都能说三种语言<br>各モデルは3つの言語を話すことができます。""")   
     gr.HTML('''<a href="https://colab.research.google.com/drive/1fTuPZ4tZsAjS-TrhQWMCb7KRdnU8aF6j" target="_blank"><img src="https://camo.githubusercontent.com/dd83d4a334eab7ada034c13747d9e2237182826d32e3fda6629740b6e02f18d8/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f436f6c61622d4639414230303f7374796c653d666f722d7468652d6261646765266c6f676f3d676f6f676c65636f6c616226636f6c6f723d353235323532" alt="colab"></a>
 ''')
 
@@ -776,11 +782,11 @@ with gr.Blocks(theme='Kasien/ali_theme_custom') as app:
     chinese_models = [name for name, _ in models_by_language["中文"]]
     japanese_models = [name for name, _ in models_by_language["日本語"]]
     with gr.Row():
-        english_choice = gr.Radio(english_models, label="EN|English Model",value="Trump",scale=3)
-        chinese_choice = gr.Radio(chinese_models, label="CN|中文模型",scale=2)
-        japanese_choice = gr.Radio(japanese_models, label="JP|日本語モデル",scale=4)
+        english_choice = gr.Radio(english_models, label="1",value="Trump",scale=3)
+        chinese_choice = gr.Radio(chinese_models, label="2",scale=2)
+        japanese_choice = gr.Radio(japanese_models, label="3",scale=4)
 
-    plsh='Input any text you like / 輸入任意文字'
+    plsh='Support【English/中文/日本語】，Input text you like / 輸入文字 /テキストを入力する'
     limit='Max 70 words. Excess will be ignored./单次最多处理120字左右，多余的会被忽略'
 
     gr.HTML('''
@@ -789,10 +795,10 @@ with gr.Blocks(theme='Kasien/ali_theme_custom') as app:
         with gr.Column(scale=2): 
             model_name = gr.Textbox(label="Seleted Model/已选模型", value=default_model_name, scale=1) 
             text_language = gr.Textbox(
-            label="Select language for input text/输入的文字对应语言",
+            label="Language for input text/生成语言",
             info='Automatic detection of input language type.',scale=1,interactive=False
             ) 
-        text = gr.Textbox(label="Input some text for voice generation/输入想要生成语音的文字", lines=5,scale=6,
+        text = gr.Textbox(label="INPUT TEXT", lines=5,scale=6,
         placeholder=plsh,info=limit)
         text.change( lang_detector, text, text_language)
 
