@@ -11,9 +11,9 @@ from feature_extractor import cnhubert
 from timeit import default_timer as timer
 from text import cleaned_text_to_sequence
 from module.models  import  SynthesizerTrn
-import os,re,sys,LangSegment,librosa,pdb,torch,pytz
 from module.mel_processing import spectrogram_torch
 from transformers.pipelines.audio_utils import ffmpeg_read
+import os,re,sys,LangSegment,librosa,pdb,torch,pytz,random
 from transformers import AutoModelForMaskedLM, AutoTokenizer
 from AR.models.t2s_lightning_module import Text2SemanticLightningModule
 
@@ -375,7 +375,7 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language,
     try:
         text_language = dict_language[text_language]
     except KeyError as e:
-        wprint(f"Not supported language types/不支持此語言: {e}")
+        wprint(f"Unsupported language type: {e}")
         return None
         
     prompt_text = prompt_text.strip("\n")
@@ -743,6 +743,11 @@ def clone_voice(user_voice,user_text,user_lang):
     tprint(f'🆗CLONE COMPLETE,{round(time2-time1,4)}s')
     return output_wav
 
+with open('dummy') as f:
+    dummy_txt = f.read().strip().splitlines()
+
+def dice():
+    return random.choice(dummy_txt), '🎲'
 
 from info import models
 models_by_language = {
@@ -782,15 +787,15 @@ with gr.Blocks(theme='Kasien/ali_theme_custom') as app:
     chinese_models = [name for name, _ in models_by_language["中文"]]
     japanese_models = [name for name, _ in models_by_language["日本語"]]
     with gr.Row():
-        english_choice = gr.Radio(english_models, label="1",value="Trump",scale=3)
-        chinese_choice = gr.Radio(chinese_models, label="2",scale=2)
-        japanese_choice = gr.Radio(japanese_models, label="3",scale=4)
+        english_choice = gr.Radio(english_models, label="EN",value="Trump",scale=3)
+        chinese_choice = gr.Radio(chinese_models, label="ZH",scale=2)
+        japanese_choice = gr.Radio(japanese_models, label="JA",scale=4)
 
     plsh='Support【English/中文/日本語】，Input text you like / 輸入文字 /テキストを入力する'
     limit='Max 70 words. Excess will be ignored./单次最多处理120字左右，多余的会被忽略'
 
     gr.HTML('''
-    <b>输入文字</b>''')
+    <b>Input Text/输入文字</b>''')
     with gr.Row():
         with gr.Column(scale=2): 
             model_name = gr.Textbox(label="Seleted Model/已选模型", value=default_model_name, scale=1) 
@@ -798,8 +803,10 @@ with gr.Blocks(theme='Kasien/ali_theme_custom') as app:
             label="Language for input text/生成语言",
             info='Automatic detection of input language type.',scale=1,interactive=False
             ) 
-        text = gr.Textbox(label="INPUT TEXT", lines=5,scale=6,
-        placeholder=plsh,info=limit)
+        text = gr.Textbox(label="INPUT TEXT", lines=5,placeholder=plsh,info=limit,scale=10,min_width=0)
+        ddice= gr.Button('🎲', variant='tool',min_width=0,scale=0)
+
+        ddice.click(dice, outputs=[text, ddice])
         text.change( lang_detector, text, text_language)
 
 
@@ -810,7 +817,7 @@ with gr.Blocks(theme='Kasien/ali_theme_custom') as app:
             choices=["tone1","tone2","tone3"],
             value="tone1",
             info='Tone influences the emotional expression ',scale=1)
-        tone_sample=gr.Audio(label="🔊Preview tone/试听语气 ", scale=6)
+        tone_sample=gr.Audio(label="🔊Preview tone/试听语气 ", scale=8)
 
 
     with gr.Accordion(label="prpt voice", open=False,visible=False):
@@ -834,7 +841,7 @@ with gr.Blocks(theme='Kasien/ali_theme_custom') as app:
         
     
     gr.HTML('''
-    <b>开始生成</b>''')
+    <b>Generate Voice/生成</b>''')
     with gr.Row():
         main_button = gr.Button("✨Generate Voice", variant="primary", scale=2)
         output = gr.Audio(label="💾Download it by clicking ⬇️", scale=6)
