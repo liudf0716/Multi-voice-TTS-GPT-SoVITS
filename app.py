@@ -226,8 +226,7 @@ def update_model(choice):
     model_info = models[choice]
     gpt_path = abs_path(model_info["gpt_weight"])
     sovits_path = abs_path(model_info["sovits_weight"])
-    tts_pipline.init_vits_weights(sovits_path)
-    tts_pipline.init_t2s_weights(gpt_path)
+   
     model_name = choice
     tone_info = model_info["tones"]["tone1"] 
     tone_sample_path = abs_path(tone_info["sample"])
