@@ -119,7 +119,10 @@ def inference(text, text_lang,
     if  text == '':
         wprint("Please input text to generate/请输入生成文字")
         return None
-    text=trim_text(text,text_language)             
+    text=trim_text(text,text_language)
+    tts_pipline.init_vits_weights(sovits_path)
+    tts_pipline.init_t2s_weights(gpt_path)
+                  
     try:
         lang=dict_language[text_lang]
         inputs={
@@ -219,7 +222,7 @@ def duration(audio_file_path):
         return False
 
 def update_model(choice):
-    #global tts_config.vits_weights_path, tts_config.t2s_weights_path
+    global gpt_path,sovits_path
     model_info = models[choice]
     gpt_path = abs_path(model_info["gpt_weight"])
     sovits_path = abs_path(model_info["sovits_weight"])
@@ -276,7 +279,7 @@ def clone_voice(user_voice,user_text,user_lang):
         wprint("Please enter text to generate/请输入生成文字")
         return None
     user_text=trim_text(user_text,user_lang)
-    global gpt_path, sovits_path
+    #global gpt_path, sovits_path
     gpt_path = abs_path("pretrained_models/s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt")
     #tprint(f'Model loaded:{gpt_path}')
     sovits_path = abs_path("pretrained_models/s2G488k.pth")
